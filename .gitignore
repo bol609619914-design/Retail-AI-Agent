@@ -1,0 +1,17 @@
+node_modules/
+.nuxt/
+.output/
+.data/
+dist/
+.DS_Store
+*.log
+
+backend/.venv/
+backend/__pycache__/
+backend/**/*.pyc
+
+.env
+.env.*
+
+frontend/.run/
+
