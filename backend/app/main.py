@@ -2,7 +2,7 @@ import json
 import re
 import time
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -43,7 +43,7 @@ class ChatRequest(BaseModel):
     messages: list[ChatMessage]
 
 
-def load_products() -> list[dict[str, object]]:
+def load_products() -> list[dict[str, Any]]:
     if not PRODUCTS_FILE.exists():
         raise FileNotFoundError(f"Products file not found: {PRODUCTS_FILE}")
 
@@ -51,15 +51,19 @@ def load_products() -> list[dict[str, object]]:
         return json.load(file)
 
 
-def product_search_text(product: dict[str, object]) -> str:
-    return " ".join(
-        [
-            str(product.get("name", "")),
-            str(product.get("feature", "")),
-            str(product.get("benefit", "")),
-            " ".join(product.get("scenarios", [])),
-        ]
-    ).lower()
+def product_search_text(product: dict[str, Any]) -> str:
+    searchable_fields = [
+        product.get("name", ""),
+        product.get("brand", ""),
+        product.get("category", ""),
+        product.get("feature", ""),
+        product.get("benefit", ""),
+        product.get("materials", ""),
+        product.get("craftsmanship", ""),
+        " ".join(product.get("signature_specs", [])),
+        " ".join(product.get("scenarios", [])),
+    ]
+    return " ".join(str(field) for field in searchable_fields).lower()
 
 
 def extract_search_tokens(text: str) -> list[str]:
@@ -73,17 +77,16 @@ def extract_search_tokens(text: str) -> list[str]:
                 expanded_tokens.extend(token[i : i + 2] for i in range(len(token) - 1))
             expanded_tokens.extend(list(token))
 
-    # Keep order while de-duplicating.
     unique_tokens = list(dict.fromkeys(expanded_tokens))
     return [token for token in unique_tokens if token.strip()]
 
 
-def search_products(keyword: str) -> list[dict[str, object]]:
+def search_products(keyword: str) -> list[dict[str, Any]]:
     normalized_keyword = keyword.strip().lower()
     if not normalized_keyword:
         return []
 
-    matched_products: list[dict[str, object]] = []
+    matched_products: list[dict[str, Any]] = []
     for product in load_products():
         searchable_text = product_search_text(product)
         if normalized_keyword in searchable_text:
@@ -92,77 +95,152 @@ def search_products(keyword: str) -> list[dict[str, object]]:
     return matched_products
 
 
-def score_products(messages: list[ChatMessage]) -> list[tuple[int, dict[str, object]]]:
+def score_products(messages: list[ChatMessage]) -> list[tuple[int, dict[str, Any], list[str]]]:
     products = load_products()
     user_text = " ".join(message.content for message in messages if message.role == "user").lower()
     tokens = extract_search_tokens(user_text)
 
-    scored_products: list[tuple[int, dict[str, object]]] = []
+    scored_products: list[tuple[int, dict[str, Any], list[str]]] = []
     for product in products:
         searchable_text = product_search_text(product)
-        score = 0
+        matched_tokens: list[str] = []
+
         for token in tokens:
             if token in searchable_text:
-                score += 1
+                matched_tokens.append(token)
 
+        score = len(matched_tokens)
         if score > 0:
-            scored_products.append((score, product))
+            scored_products.append((score, product, list(dict.fromkeys(matched_tokens))))
 
     scored_products.sort(key=lambda item: item[0], reverse=True)
     return scored_products
 
 
-def select_relevant_products(messages: list[ChatMessage]) -> list[dict[str, object]]:
+def select_relevant_products(messages: list[ChatMessage]) -> list[dict[str, Any]]:
     scored_products = score_products(messages)
     if scored_products:
-        return [product for _, product in scored_products[:3]]
+        return [product for _, product, _ in scored_products[:3]]
     return load_products()
 
 
-def choose_recommended_product(messages: list[ChatMessage]) -> dict[str, object] | None:
+def choose_recommended_candidate(messages: list[ChatMessage]) -> tuple[int, dict[str, Any], list[str]] | None:
     scored_products = score_products(messages)
     if not scored_products:
         return None
 
-    best_score, product = scored_products[0]
+    best_score, product, matched_tokens = scored_products[0]
     if best_score < 1:
         return None
-    return product
+    return best_score, product, matched_tokens
 
 
-def build_system_prompt(products: list[dict[str, object]], recommended_product: dict[str, object] | None) -> str:
+def normalize_preference_labels(tokens: list[str]) -> list[str]:
+    priority_keywords = [
+        "卧室",
+        "床头",
+        "书房",
+        "客厅",
+        "安静",
+        "柔和",
+        "灯光",
+        "香氛",
+        "睡眠",
+        "放松",
+        "阅读",
+        "办公",
+        "空气",
+        "穿搭",
+        "咖啡",
+        "送礼",
+    ]
+
+    labels: list[str] = []
+    for keyword in priority_keywords:
+        if any(keyword in token for token in tokens):
+            labels.append(keyword)
+
+    return labels[:4]
+
+
+def build_recommendation_payload(
+    messages: list[ChatMessage],
+    recommended_candidate: tuple[int, dict[str, Any], list[str]] | None,
+) -> dict[str, Any] | None:
+    if not recommended_candidate:
+        return None
+
+    _, product, matched_tokens = recommended_candidate
+    all_candidates = score_products(messages)
+    alternative_candidates = [
+        candidate_product["name"]
+        for _, candidate_product, _ in all_candidates[1:3]
+    ]
+
+    preference_labels = normalize_preference_labels(matched_tokens)
+    if not preference_labels:
+        preference_labels = ["空间氛围", "日常舒适度"]
+
+    why_this = [
+        f"它更贴近你当前提到的偏好重点：{'、'.join(preference_labels)}。",
+        f"从功能层面看，{product['feature']}",
+        f"从体验层面看，它能{product['benefit']}",
+    ]
+
+    if alternative_candidates:
+        why_not_others = (
+            f"相比 {alternative_candidates[0]}"
+            + (f" 和 {alternative_candidates[1]}" if len(alternative_candidates) > 1 else "")
+            + "，这款产品与当前场景的契合度更集中，不需要你在多种方向之间摇摆。"
+        )
+    else:
+        why_not_others = "目前这款产品与当前对话中的偏好方向最一致，因此没有再分散到其他选择。"
+
+    return {
+        "name": product["name"],
+        "brand": product.get("brand", ""),
+        "category": product.get("category", ""),
+        "price_range": product.get("price_range", ""),
+        "materials": product.get("materials", ""),
+        "craftsmanship": product.get("craftsmanship", ""),
+        "signature_specs": product.get("signature_specs", []),
+        "image": product.get("image", ""),
+        "feature": product["feature"],
+        "benefit": product["benefit"],
+        "scenarios": product["scenarios"],
+        "matched_preferences": preference_labels,
+        "why_this": why_this,
+        "why_not_others": why_not_others,
+        "consultant_summary": f"这款更像是在为你的生活方式补上一层稳定而克制的质感，而不是单纯增加一个功能设备。",
+    }
+
+
+def build_system_prompt(
+    products: list[dict[str, Any]],
+    recommended_product: dict[str, Any] | None,
+    stage: str,
+) -> str:
     catalog_json = json.dumps(products, ensure_ascii=False, indent=2)
     recommendation_hint = ""
     if recommended_product:
         recommendation_hint = (
-            "\n\u63a8\u8350\u7ea6\u675f\uff1a\u5982\u679c\u4fe1\u606f\u5df2\u7ecf\u8db3\u591f\uff0c"
-            "\u8bf7\u4f18\u5148\u56f4\u7ed5\u8fd9\u6b3e\u4ea7\u54c1\u5f62\u6210\u6700\u7ec8\u5efa\u8bae\uff0c"
-            f"\u5e76\u786e\u4fdd\u63a8\u8350\u5bf9\u8c61\u662f\u201c{recommended_product['name']}\u201d\u3002\n"
+            "\n推荐约束：如果信息已经足够，请优先围绕这款产品形成最终建议，"
+            f"并确保推荐对象是“{recommended_product['name']}”。\n"
         )
 
     return (
-        "\u4f60\u662f\u4e00\u4f4d\u5728\u9ad8\u7aef\u5546\u573a\u5de5\u4f5c\u7684\u4e13\u4e1a\u987e\u95ee\u3002"
-        "\u4f60\u7684\u4efb\u52a1\u662f\u5148\u901a\u8fc7\u804a\u5929\u4e86\u89e3\u7528\u6237\u5bf9\u751f\u6d3b\u7684"
-        "\u54c1\u8d28\u8981\u6c42\uff0c\u7136\u540e\u4ece\u6211\u63d0\u4f9b\u7684\u4ea7\u54c1\u5e93\u4e2d"
-        "\u6311\u9009\u6700\u5408\u9002\u7684\u4e00\u6b3e\u63a8\u8350\u7ed9\u4ed6\u4eec\u3002"
-        "\u8bf4\u8bdd\u8981\u4f18\u96c5\u3001\u514b\u5236\uff0c\u4e0d\u8981\u50cf\u63a8\u9500\u5458\u3002\n\n"
-        "\u56de\u7b54\u89c4\u5219\uff1a\n"
-        "1. \u6240\u6709\u5bf9\u5916\u56de\u590d\u90fd\u4ee5\u4e2d\u6587\u4e3a\u4e3b\uff0c"
-        "\u81ea\u7136\u3001\u7b80\u6d01\u3001\u6709\u5206\u5bf8\u3002\n"
-        "2. \u5982\u679c\u4fe1\u606f\u8fd8\u4e0d\u591f\uff0c\u8bf7\u5148\u63d0\u51fa\u4e00\u4e2a"
-        "\u7b80\u6d01\u3001\u81ea\u7136\u7684\u95ee\u9898\u6765\u4e86\u89e3\u7528\u6237\u5bf9\u7a7a\u95f4\u3001"
-        "\u6c1b\u56f4\u3001\u529f\u80fd\u6216\u751f\u6d3b\u65b9\u5f0f\u7684\u504f\u597d\u3002\n"
-        "3. \u5f53\u4f60\u5df2\u7ecf\u6709\u8db3\u591f\u4fe1\u606f\u65f6\uff0c\u53ea\u63a8\u8350"
-        "\u6700\u5408\u9002\u7684\u4e00\u6b3e\u4ea7\u54c1\uff0c\u4e0d\u8981\u540c\u65f6\u63a8\u8350\u591a\u6b3e\u3002\n"
-        "4. \u63a8\u8350\u65f6\u8981\u81ea\u7136\u8bf4\u660e\u8fd9\u6b3e\u4ea7\u54c1\u7684\u6838\u5fc3\u529f\u80fd\u3001"
-        "\u80fd\u5e26\u6765\u7684\u5229\u76ca\u4e0e\u9002\u7528\u573a\u666f\uff0c\u4f46\u8bed\u6c14\u4ecd\u9700"
-        "\u514b\u5236\u3001\u50cf\u987e\u95ee\u800c\u4e0d\u662f\u9500\u552e\u3002\n"
-        "5. \u53ea\u80fd\u57fa\u4e8e\u4e0b\u9762\u4ea7\u54c1\u5e93\u4e2d\u7684\u4fe1\u606f\u6765\u63a8\u8350\uff0c"
-        "\u4e0d\u8981\u7f16\u9020\u4ea7\u54c1\u5e93\u4ee5\u5916\u7684\u4ea7\u54c1\u3002\n"
-        "6. \u56de\u590d\u5c3d\u91cf\u63a7\u5236\u5728 2 \u5230 4 \u6bb5\u4ee5\u5185\uff0c"
-        "\u4fdd\u6301\u9ad8\u7ea7\u611f\u548c\u53ef\u8bfb\u6027\u3002"
+        "你是一位在高端商场工作的专业顾问。你的任务是先通过聊天了解用户对生活的品质要求，"
+        "然后从我提供的产品库中挑选最合适的一款推荐给他们。说话要优雅、克制，不要像推销员。\n\n"
+        "回答规则：\n"
+        "1. 所有对外回复都以中文为主，自然、简洁、有分寸。\n"
+        "2. 对话节奏遵循顾问式追问：第一轮优先确认空间，第二轮收敛氛围或功能，第三轮再给出单品推荐。\n"
+        "3. 如果当前信息还不足，请只问一个问题，不要连续追问多个问题。\n"
+        "4. 当信息足够时，只推荐最合适的一款产品，不要同时推荐多款。\n"
+        "5. 推荐后补一句柔和的延展建议，例如是否要继续收敛搭配方向。\n"
+        "6. 只能基于下面产品库中的信息来推荐，不要编造产品库以外的产品。\n"
+        f"当前阶段判断：{stage}\n"
         f"{recommendation_hint}\n"
-        f"\u4ea7\u54c1\u5e93\uff08JSON\uff09\uff1a\n{catalog_json}"
+        f"产品库（JSON）：\n{catalog_json}"
     )
 
 
@@ -170,72 +248,71 @@ def create_openai_client() -> OpenAI:
     return OpenAI(api_key=settings.openai_api_key)
 
 
-def has_enough_context(messages: list[ChatMessage], recommended_product: dict[str, object] | None) -> bool:
+def detect_conversation_stage(messages: list[ChatMessage], recommendation_payload: dict[str, Any] | None) -> str:
     user_messages = [message.content for message in messages if message.role == "user"]
-    if not user_messages or not recommended_product:
-        return False
-
     combined_text = " ".join(user_messages)
-    meaningful_keywords = [
-        "\u5367\u5ba4",
-        "\u5e8a\u5934",
-        "\u9605\u8bfb",
-        "\u529e\u516c",
-        "\u9999\u6c1b",
-        "\u7761\u7720",
-        "\u5ba2\u5385",
-        "\u5b89\u9759",
-        "\u706f",
-        "\u5496\u5561",
-        "\u7a7f\u642d",
-        "\u7a7a\u6c14",
-    ]
-    hit_count = sum(1 for keyword in meaningful_keywords if keyword in combined_text)
-    return len(user_messages) >= 2 or hit_count >= 2 or len(combined_text) >= 18
+
+    spaces = ["卧室", "书房", "客厅", "玄关", "衣帽间", "办公桌", "床头", "咖啡角"]
+    atmospheres = ["安静", "柔和", "放松", "香氛", "明亮", "睡眠", "氛围", "清新", "高级"]
+    functions = ["灯光", "照明", "空气", "净化", "阅读", "办公", "穿搭", "咖啡", "助眠"]
+
+    has_space = any(keyword in combined_text for keyword in spaces)
+    has_atmosphere = any(keyword in combined_text for keyword in atmospheres)
+    has_function = any(keyword in combined_text for keyword in functions)
+
+    if recommendation_payload and has_space and (has_atmosphere or has_function):
+        return "final_recommendation"
+    if has_space:
+        return "clarify_atmosphere_or_function"
+    return "clarify_space"
 
 
-def mock_reply(messages: list[ChatMessage], recommended_product: dict[str, object] | None) -> str:
-    latest_user_message = next((message.content for message in reversed(messages) if message.role == "user"), "")
-    if not has_enough_context(messages, recommended_product) or not recommended_product:
-        return (
-            "\u6211\u60f3\u5148\u66f4\u51c6\u786e\u5730\u7406\u89e3\u4f60\u7684\u751f\u6d3b\u504f\u597d\u3002"
-            "\u4f60\u66f4\u5728\u610f\u7684\u662f\u7a7a\u95f4\u6c1b\u56f4\u3001\u65e5\u5e38\u529f\u80fd\uff0c"
-            "\u8fd8\u662f\u67d0\u79cd\u66f4\u5177\u4f53\u7684\u4f7f\u7528\u573a\u666f\uff0c"
-            "\u6bd4\u5982\u5367\u5ba4\u3001\u4e66\u623f\u6216\u5ba2\u5385\uff1f"
-        )
+def has_enough_context(stage: str) -> bool:
+    return stage == "final_recommendation"
 
-    scenarios = "\u3001".join(recommended_product["scenarios"])
+
+def mock_reply(stage: str, recommendation_payload: dict[str, Any] | None) -> str:
+    if stage == "clarify_space":
+        return "在继续往下收敛之前，我想先确认一下，你更希望我围绕哪个空间来考虑这件单品？例如卧室、书房、客厅，或某个更具体的角落。"
+
+    if stage == "clarify_atmosphere_or_function":
+        return "我已经大致理解了空间方向。接下来我想再收拢一步：你更在意的是氛围感，比如柔和、安静、放松，还是更明确的功能体验，比如照明、空气、香氛或阅读舒适度？"
+
+    if not recommendation_payload:
+        return "我已经接近形成判断了。如果你愿意，再补一句你最在意的感受关键词，我会更稳妥地收敛到一件单品。"
+
     return (
-        f"\u5982\u679c\u4ece\u73b0\u6709\u4ea7\u54c1\u91cc\u53ea\u6311\u4e00\u6b3e\u66f4\u5408\u9002\u7684\uff0c"
-        f"\u6211\u4f1a\u503e\u5411\u4e8e\u63a8\u8350\u201c{recommended_product['name']}\u201d\u3002\n\n"
-        f"\u5b83\u7684\u6838\u5fc3\u4f18\u52bf\u5728\u4e8e\uff1a{recommended_product['feature']}"
-        f"\u3002\u5bf9\u4f60\u6765\u8bf4\uff0c\u66f4\u91cd\u8981\u7684\u662f\u5b83\u80fd"
-        f"{recommended_product['benefit']}\n\n"
-        f"\u5982\u679c\u4f60\u7684\u91cd\u70b9\u63a5\u8fd1\u201c{latest_user_message}\u201d\uff0c"
-        f"\u90a3\u4e48\u5b83\u4f1a\u6bd4\u8f83\u81ea\u7136\u5730\u878d\u5165\u8fd9\u4e9b\u573a\u666f\uff1a{scenarios}\u3002"
+        f"如果从现有产品里只挑一款更合适的，我会倾向于推荐“{recommendation_payload['name']}”。\n\n"
+        f"它之所以更适合你，不只是因为{recommendation_payload['feature']}，更因为它能{recommendation_payload['benefit']}\n\n"
+        f"如果你愿意，我也可以继续帮你把这件单品放进更完整的空间搭配里，看看它与灯光、香氛或材质气质是否一致。"
     )
 
 
-def sse_event(event: str, data: dict[str, object]) -> bytes:
+def sse_event(event: str, data: dict[str, Any]) -> bytes:
     payload = json.dumps(data, ensure_ascii=False)
     return f"event: {event}\ndata: {payload}\n\n".encode("utf-8")
 
 
-def stream_mock_response(messages: list[ChatMessage], recommended_product: dict[str, object] | None):
-    reply = mock_reply(messages, recommended_product)
+def stream_mock_response(stage: str, recommendation_payload: dict[str, Any] | None):
+    reply = mock_reply(stage, recommendation_payload)
     for char in reply:
         yield sse_event("chunk", {"text": char})
-        time.sleep(0.012)
+        time.sleep(0.01)
 
-    if has_enough_context(messages, recommended_product) and recommended_product:
-        yield sse_event("product", {"product": recommended_product})
+    if stage == "final_recommendation" and recommendation_payload:
+        yield sse_event("product", {"product": recommendation_payload})
 
+    yield sse_event("meta", {"mode": "mock", "stage": stage})
     yield sse_event("done", {"source": "mock"})
 
 
-def stream_openai_response(messages: list[ChatMessage], recommended_product: dict[str, object] | None):
+def stream_openai_response(
+    messages: list[ChatMessage],
+    recommendation_payload: dict[str, Any] | None,
+    stage: str,
+):
     products = select_relevant_products(messages)
-    system_prompt = build_system_prompt(products, recommended_product)
+    system_prompt = build_system_prompt(products, recommendation_payload, stage)
     client = create_openai_client()
     completion_stream = client.chat.completions.create(
         model=settings.openai_model,
@@ -255,19 +332,23 @@ def stream_openai_response(messages: list[ChatMessage], recommended_product: dic
         if delta:
             yield sse_event("chunk", {"text": delta})
 
-    if has_enough_context(messages, recommended_product) and recommended_product:
-        yield sse_event("product", {"product": recommended_product})
+    if stage == "final_recommendation" and recommendation_payload:
+        yield sse_event("product", {"product": recommendation_payload})
 
+    yield sse_event("meta", {"mode": "openai", "stage": stage})
     yield sse_event("done", {"source": "openai"})
 
 
 def stream_chat_response(messages: list[ChatMessage]):
-    recommended_product = choose_recommended_product(messages)
+    recommended_candidate = choose_recommended_candidate(messages)
+    recommendation_payload = build_recommendation_payload(messages, recommended_candidate)
+    stage = detect_conversation_stage(messages, recommendation_payload)
+
     try:
         if settings.openai_api_key:
-            yield from stream_openai_response(messages, recommended_product)
+            yield from stream_openai_response(messages, recommendation_payload, stage)
             return
-        yield from stream_mock_response(messages, recommended_product)
+        yield from stream_mock_response(stage, recommendation_payload)
     except Exception as exc:
         yield sse_event("error", {"message": str(exc)})
 
@@ -278,7 +359,7 @@ async def root() -> dict[str, str]:
 
 
 @app.get("/api/products/search")
-async def product_search(keyword: str = Query(..., min_length=1)) -> dict[str, object]:
+async def product_search(keyword: str = Query(..., min_length=1)) -> dict[str, Any]:
     try:
         results = search_products(keyword)
     except FileNotFoundError as exc:

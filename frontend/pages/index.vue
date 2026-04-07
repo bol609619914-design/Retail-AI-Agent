@@ -1,21 +1,32 @@
 <template>
   <div class="chat-page flex min-h-screen items-center justify-center px-4 py-8 sm:px-6">
-    <div class="chat-shell flex h-[min(86vh,860px)] w-full max-w-5xl flex-col overflow-hidden rounded-[32px] border border-white/60 bg-white/45 shadow-soft backdrop-blur-2xl">
-      <header class="flex items-center justify-between border-b border-white/40 px-6 py-5 sm:px-8">
+    <div class="chat-shell flex h-[min(88vh,920px)] w-full max-w-6xl flex-col overflow-hidden rounded-[34px] border border-white/60 bg-white/45 shadow-soft backdrop-blur-2xl">
+      <header class="flex flex-wrap items-center justify-between gap-4 border-b border-white/40 px-6 py-5 sm:px-8">
         <div>
           <p class="text-[11px] uppercase tracking-[0.38em] text-emerald-700/60">
             Retail AI Agent
           </p>
-          <h1 class="mt-2 text-2xl font-extralight text-slate-900">
+          <h1 class="mt-2 text-2xl font-extralight text-slate-900 sm:text-3xl">
             高端零售顾问对话台
           </h1>
         </div>
-        <div class="hidden rounded-full bg-white/65 px-4 py-2 text-sm font-light text-slate-500 shadow-[0_10px_30px_rgba(148,163,184,0.12)] sm:block">
-          中文流式推荐体验
+
+        <div class="flex flex-wrap items-center gap-2">
+          <span
+            class="rounded-full border px-3 py-1 text-xs font-light"
+            :class="demoMode
+              ? 'border-amber-200 bg-amber-50/80 text-amber-700'
+              : 'border-emerald-200 bg-emerald-50/80 text-emerald-700'"
+          >
+            {{ demoMode ? '本地演示模式' : '模型在线模式' }}
+          </span>
+          <span class="rounded-full bg-white/65 px-4 py-2 text-sm font-light text-slate-500 shadow-[0_10px_30px_rgba(148,163,184,0.12)]">
+            中文顾问式推荐
+          </span>
         </div>
       </header>
 
-      <div class="grid flex-1 overflow-hidden lg:grid-cols-[1.1fr_0.9fr]">
+      <div class="grid flex-1 overflow-hidden lg:grid-cols-[1.05fr_0.95fr]">
         <div ref="messageViewport" class="overflow-y-auto border-b border-white/30 px-4 py-5 sm:px-6 lg:border-b-0 lg:border-r">
           <TransitionGroup name="message" tag="div" class="space-y-4">
             <div
@@ -36,11 +47,11 @@
                 </template>
               </div>
 
-              <div class="max-w-[82%] space-y-3">
+              <div class="max-w-[84%] space-y-3">
                 <div
                   class="rounded-[24px] px-4 py-3 text-[15px] leading-7 shadow-[0_12px_30px_rgba(148,163,184,0.10)]"
                   :class="message.role === 'assistant'
-                    ? 'bg-white/80 text-slate-700'
+                    ? 'bg-white/82 text-slate-700'
                     : 'bg-emerald-50/90 text-slate-800'"
                 >
                   <template v-if="message.content">
@@ -59,40 +70,124 @@
 
                 <div
                   v-if="message.recommendation"
-                  class="recommend-card rounded-[28px] border border-emerald-100/80 bg-white/85 p-5 shadow-[0_18px_40px_rgba(148,163,184,0.10)]"
+                  class="recommend-card overflow-hidden rounded-[30px] border border-white/60 bg-white/90 shadow-[0_24px_50px_rgba(148,163,184,0.16)]"
                 >
-                  <div class="mb-4 flex items-start justify-between gap-3">
-                    <div>
-                      <p class="text-[11px] uppercase tracking-[0.28em] text-emerald-700/60">
-                        推荐单品
+                  <div class="recommend-cover relative h-44 overflow-hidden">
+                    <img
+                      :src="message.recommendation.image"
+                      :alt="message.recommendation.name"
+                      class="h-full w-full object-cover"
+                    >
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950/55 via-slate-900/10 to-transparent" />
+                    <div class="absolute left-5 top-5 flex flex-wrap gap-2">
+                      <span class="rounded-full bg-white/85 px-3 py-1 text-[11px] font-light text-slate-700">
+                        {{ message.recommendation.category }}
+                      </span>
+                      <span class="rounded-full bg-white/20 px-3 py-1 text-[11px] font-light text-white backdrop-blur">
+                        {{ message.recommendation.brand }}
+                      </span>
+                    </div>
+                    <div class="absolute bottom-5 left-5 right-5">
+                      <p class="text-[11px] uppercase tracking-[0.26em] text-white/70">
+                        顾问推荐
                       </p>
-                      <h3 class="mt-2 text-xl font-extralight text-slate-900">
+                      <h3 class="mt-2 text-2xl font-extralight text-white">
                         {{ message.recommendation.name }}
                       </h3>
+                      <p class="mt-2 text-sm font-light text-white/82">
+                        {{ message.recommendation.price_range }}
+                      </p>
                     </div>
-                    <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-light text-emerald-700">
-                      顾问精选
-                    </span>
                   </div>
 
-                  <div class="space-y-4 text-sm font-light leading-7 text-slate-600">
-                    <div>
-                      <p class="mb-1 text-xs uppercase tracking-[0.22em] text-slate-400">
-                        核心功能
+                  <div class="space-y-5 px-5 py-5 text-sm font-light leading-7 text-slate-600">
+                    <div class="rounded-2xl bg-mint-50/80 p-4">
+                      <p class="mb-2 text-xs uppercase tracking-[0.24em] text-emerald-700/60">
+                        顾问判断摘要
                       </p>
-                      <p>{{ message.recommendation.feature }}</p>
+                      <p>{{ message.recommendation.consultant_summary }}</p>
+                    </div>
+
+                    <div class="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <p class="mb-1 text-xs uppercase tracking-[0.22em] text-slate-400">
+                          品牌
+                        </p>
+                        <p>{{ message.recommendation.brand }}</p>
+                      </div>
+                      <div>
+                        <p class="mb-1 text-xs uppercase tracking-[0.22em] text-slate-400">
+                          价格区间
+                        </p>
+                        <p>{{ message.recommendation.price_range }}</p>
+                      </div>
                     </div>
 
                     <div>
                       <p class="mb-1 text-xs uppercase tracking-[0.22em] text-slate-400">
-                        用户利益
+                        材质 / 工艺
                       </p>
-                      <p>{{ message.recommendation.benefit }}</p>
+                      <p>{{ message.recommendation.materials }}</p>
+                      <p class="mt-2 text-slate-500">
+                        {{ message.recommendation.craftsmanship }}
+                      </p>
                     </div>
 
                     <div>
                       <p class="mb-2 text-xs uppercase tracking-[0.22em] text-slate-400">
-                        场景
+                        专业参数
+                      </p>
+                      <div class="space-y-2">
+                        <div
+                          v-for="spec in message.recommendation.signature_specs"
+                          :key="spec"
+                          class="rounded-2xl bg-slate-50/90 px-3 py-2"
+                        >
+                          {{ spec }}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p class="mb-2 text-xs uppercase tracking-[0.22em] text-slate-400">
+                        命中的偏好点
+                      </p>
+                      <div class="flex flex-wrap gap-2">
+                        <span
+                          v-for="preference in message.recommendation.matched_preferences"
+                          :key="preference"
+                          class="rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-700"
+                        >
+                          {{ preference }}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p class="mb-2 text-xs uppercase tracking-[0.22em] text-slate-400">
+                        为什么选这款
+                      </p>
+                      <ul class="space-y-2">
+                        <li
+                          v-for="reason in message.recommendation.why_this"
+                          :key="reason"
+                          class="rounded-2xl bg-white/80 px-3 py-2 shadow-[0_8px_18px_rgba(148,163,184,0.08)]"
+                        >
+                          {{ reason }}
+                        </li>
+                      </ul>
+                    </div>
+
+                    <div>
+                      <p class="mb-1 text-xs uppercase tracking-[0.22em] text-slate-400">
+                        为什么暂不推荐别的
+                      </p>
+                      <p>{{ message.recommendation.why_not_others }}</p>
+                    </div>
+
+                    <div>
+                      <p class="mb-2 text-xs uppercase tracking-[0.22em] text-slate-400">
+                        适用场景
                       </p>
                       <div class="flex flex-wrap gap-2">
                         <span
@@ -111,17 +206,42 @@
           </TransitionGroup>
         </div>
 
-        <aside class="flex flex-col justify-between bg-white/20 px-5 py-5 sm:px-6">
+        <aside class="flex flex-col justify-between bg-white/22 px-5 py-5 sm:px-6">
           <div class="space-y-5">
             <div class="rounded-[28px] border border-white/50 bg-white/55 p-5">
               <p class="text-[11px] uppercase tracking-[0.3em] text-slate-400">
                 当前状态
               </p>
               <h2 class="mt-3 text-xl font-extralight text-slate-900">
-                {{ activeRecommendation ? '已形成推荐' : '仍在理解偏好' }}
+                {{ activeRecommendation ? '已形成推荐' : statusTitle }}
               </h2>
               <p class="mt-3 text-sm font-light leading-7 text-slate-600">
                 {{ statusCopy }}
+              </p>
+            </div>
+
+            <div class="rounded-[28px] border border-white/50 bg-white/55 p-5">
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <p class="text-[11px] uppercase tracking-[0.3em] text-slate-400">
+                    运行模式
+                  </p>
+                  <h3 class="mt-2 text-lg font-extralight text-slate-900">
+                    {{ demoMode ? '本地演示模式' : '在线模型模式' }}
+                  </h3>
+                </div>
+                <div
+                  class="rounded-full px-3 py-1 text-xs font-light"
+                  :class="demoMode ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'"
+                >
+                  {{ demoMode ? 'Mock' : 'OpenAI' }}
+                </div>
+              </div>
+              <p class="mt-3 text-sm font-light leading-7 text-slate-600">
+                {{ demoMode
+                  ? '当前为本地演示模式，已启用模拟顾问回复，适合无 Key 演示和作品展示。'
+                  : '当前已接入在线模型服务，会按照顾问式对话节奏实时生成回复。'
+                }}
               </p>
             </div>
 
@@ -136,18 +256,18 @@
                 {{ activeRecommendation.name }}
               </h3>
               <p class="mt-3 text-sm font-light leading-7 text-slate-600">
-                {{ activeRecommendation.benefit }}
+                {{ activeRecommendation.consultant_summary }}
               </p>
             </div>
 
             <div class="rounded-[28px] border border-white/50 bg-white/55 p-5">
               <p class="text-[11px] uppercase tracking-[0.3em] text-slate-400">
-                对话提示
+                顾问节奏
               </p>
               <ul class="mt-3 space-y-2 text-sm font-light leading-7 text-slate-600">
-                <li>尽量用中文描述你想要的空间氛围。</li>
-                <li>可以直接说卧室、书房、客厅或送礼场景。</li>
-                <li>越具体，顾问越容易收敛到单一产品。</li>
+                <li>第一轮先确认空间，例如卧室、客厅或书房。</li>
+                <li>第二轮继续收拢氛围或功能重点，例如安静、柔和、香氛或照明。</li>
+                <li>第三轮再推荐单品，并解释为什么是这款而不是别的。</li>
               </ul>
             </div>
           </div>
@@ -158,7 +278,7 @@
                 v-model="draft"
                 type="text"
                 class="flex-1 border-0 bg-transparent text-[15px] font-light text-slate-700 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed"
-                placeholder="比如：我想给卧室增加更柔和安静的夜间氛围"
+                placeholder="比如：我希望卧室更安静柔和，适合睡前放松"
                 :disabled="isStreaming"
                 @keydown.enter="sendMessage"
               >
@@ -196,9 +316,20 @@
 <script setup lang="ts">
 interface ProductRecommendation {
   name: string
+  brand: string
+  category: string
+  price_range: string
+  materials: string
+  craftsmanship: string
+  signature_specs: string[]
+  image: string
   feature: string
   benefit: string
   scenarios: string[]
+  matched_preferences: string[]
+  why_this: string[]
+  why_not_others: string
+  consultant_summary: string
 }
 
 interface ChatMessage {
@@ -214,6 +345,8 @@ interface SseEnvelope {
   product?: ProductRecommendation
   source?: string
   message?: string
+  mode?: string
+  stage?: string
 }
 
 const config = useRuntimeConfig()
@@ -222,25 +355,41 @@ const isStreaming = ref(false)
 const nextId = ref(2)
 const messageViewport = ref<HTMLDivElement | null>(null)
 const activeRecommendation = ref<ProductRecommendation | null>(null)
+const demoMode = ref(true)
+const conversationStage = ref<'clarify_space' | 'clarify_atmosphere_or_function' | 'final_recommendation'>('clarify_space')
 const messages = ref<ChatMessage[]>([
   {
     id: 1,
     role: 'assistant',
-    content: '欢迎来到 Retail AI Agent。请用中文告诉我，你更在意空间氛围、日常功能，还是某种具体场景，我会尽量为你收敛到最合适的一件单品。',
+    content: '欢迎来到 Retail AI Agent。先从空间开始吧。你希望我围绕卧室、客厅、书房，还是某个更具体的角落来为你判断？',
     recommendation: null
   }
 ])
 
+const statusTitle = computed(() => {
+  if (conversationStage.value === 'clarify_atmosphere_or_function') {
+    return '正在收拢氛围与功能'
+  }
+  if (conversationStage.value === 'final_recommendation') {
+    return '进入单品判断'
+  }
+  return '仍在理解空间'
+})
+
 const statusCopy = computed(() => {
   if (activeRecommendation.value) {
-    return '顾问已经基于你的偏好收敛出一款更合适的产品，并同步展示了结构化推荐卡片。'
+    return '顾问已经形成单品判断，并把理由、命中的偏好点与替代选择说明同步展开。'
   }
 
-  if (isStreaming.value) {
-    return '顾问正在实时生成回复，并尝试从产品库中判断是否已经足够形成单品推荐。'
+  if (conversationStage.value === 'clarify_atmosphere_or_function') {
+    return '空间方向已经有了，下一步会继续追问你更偏好的氛围感受或功能重点。'
   }
 
-  return '你可以继续补充偏好，例如空间、光线、香氛、安静程度或生活方式关键词。'
+  if (conversationStage.value === 'final_recommendation') {
+    return '信息已经接近足够，顾问正在将偏好收敛成一件更合适的单品。'
+  }
+
+  return '当前仍处于第一轮理解阶段，你可以先说空间，再慢慢讲气氛与使用习惯。'
 })
 
 function scrollToBottom() {
@@ -275,11 +424,17 @@ function applySseEvent(rawEvent: string, assistantMessage: ChatMessage) {
   }
 
   const payload = JSON.parse(payloadText) as SseEnvelope
+
   if (eventName === 'chunk' && payload.text) {
     assistantMessage.content += payload.text
   } else if (eventName === 'product' && payload.product) {
     assistantMessage.recommendation = payload.product
     activeRecommendation.value = payload.product
+  } else if (eventName === 'meta') {
+    demoMode.value = payload.mode !== 'openai'
+    if (payload.stage === 'clarify_space' || payload.stage === 'clarify_atmosphere_or_function' || payload.stage === 'final_recommendation') {
+      conversationStage.value = payload.stage
+    }
   } else if (eventName === 'error') {
     assistantMessage.content = payload.message
       ? `顾问服务暂时有些不稳定：${payload.message}`
@@ -430,6 +585,13 @@ onMounted(() => {
 
 .recommend-card {
   backdrop-filter: blur(18px);
+}
+
+.recommend-cover::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(15, 23, 42, 0.2));
+  content: '';
 }
 
 .send-button {
