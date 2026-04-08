@@ -18,7 +18,7 @@ body,
 
 body {
   margin: 0;
-  font-weight: 300;
+  font-weight: 400;
   background:
     radial-gradient(circle at top, rgba(167, 243, 208, 0.12), transparent 30%),
     linear-gradient(180deg, #f0f9f4 0%, #f7fcf9 35%, #ffffff 100%);
