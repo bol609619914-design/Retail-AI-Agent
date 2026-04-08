@@ -1,22 +1,22 @@
 <template>
-  <div class="recommend-card overflow-hidden rounded-[30px] border border-white/60 bg-white/90 shadow-[0_24px_50px_rgba(148,163,184,0.16)]">
-    <div class="recommend-cover relative h-44 overflow-hidden">
+  <div class="recommend-card overflow-hidden rounded-[30px] border border-white/50 shadow-[0_26px_60px_rgba(87,94,119,0.24)]">
+    <div class="recommend-cover relative h-48 overflow-hidden">
       <img
         :src="recommendation.image"
         :alt="recommendation.name"
         class="h-full w-full object-cover"
       >
-      <div class="absolute inset-0 bg-gradient-to-t from-slate-950/55 via-slate-900/10 to-transparent" />
+      <div class="absolute inset-0 bg-gradient-to-t from-slate-950/82 via-slate-900/28 to-transparent" />
       <div class="absolute left-5 top-5 flex flex-wrap gap-2">
-        <span class="rounded-full bg-white/85 px-3 py-1 text-[11px] font-medium text-slate-700">
+        <span class="rounded-full bg-white/88 px-3 py-1 text-[11px] font-medium text-slate-700">
           {{ recommendation.category }}
         </span>
-        <span class="rounded-full bg-white/20 px-3 py-1 text-[11px] font-medium text-white backdrop-blur">
+        <span class="rounded-full bg-black/22 px-3 py-1 text-[11px] font-medium text-white backdrop-blur">
           {{ recommendation.brand }}
         </span>
       </div>
       <div class="absolute bottom-5 left-5 right-5">
-        <p class="text-[11px] uppercase tracking-[0.26em] text-white/70">
+        <p class="text-[11px] uppercase tracking-[0.26em] text-white/68">
           顾问推荐
         </p>
         <h3 class="mt-2 text-2xl font-semibold text-white">
@@ -31,8 +31,8 @@
     </div>
 
     <div class="space-y-5 px-5 py-5 text-sm font-normal leading-7 text-slate-600">
-      <div class="rounded-2xl bg-mint-50/80 p-4">
-        <p class="mb-2 text-xs uppercase tracking-[0.24em] text-emerald-700/60">
+      <div class="summary-box rounded-2xl p-4">
+        <p class="mb-2 text-xs uppercase tracking-[0.24em] text-emerald-800/60">
           顾问判断摘要
         </p>
         <p>{{ recommendation.consultant_summary }}</p>
@@ -79,7 +79,7 @@
           <div
             v-for="spec in recommendation.signature_specs"
             :key="spec"
-            class="rounded-2xl bg-slate-50/90 px-3 py-2"
+            class="spec-chip rounded-2xl px-3 py-2"
           >
             {{ spec }}
           </div>
@@ -109,7 +109,7 @@
           <li
             v-for="reason in recommendation.why_this"
             :key="reason"
-            class="rounded-2xl bg-white/80 px-3 py-2 shadow-[0_8px_18px_rgba(148,163,184,0.08)]"
+            class="reason-chip rounded-2xl px-3 py-2"
           >
             {{ reason }}
           </li>
@@ -162,11 +162,22 @@
           <span
             v-for="scenario in recommendation.scenarios"
             :key="scenario"
-            class="rounded-full bg-mint-50 px-3 py-1 text-xs text-slate-600"
+            class="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600"
           >
             {{ scenario }}
           </span>
         </div>
+      </div>
+
+      <div v-if="recommendation.source_url" class="pt-1">
+        <a
+          :href="recommendation.source_url"
+          target="_blank"
+          rel="noreferrer"
+          class="inline-flex items-center rounded-full border border-emerald-200/90 bg-emerald-50 px-4 py-2 text-xs font-medium tracking-[0.18em] text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100"
+        >
+          查看官网
+        </a>
       </div>
     </div>
   </div>
@@ -182,13 +193,31 @@ defineProps<{
 
 <style scoped>
 .recommend-card {
+  background:
+    linear-gradient(180deg, rgba(252, 253, 255, 0.96), rgba(244, 246, 250, 0.92));
   backdrop-filter: blur(18px);
 }
 
 .recommend-cover::after {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(15, 23, 42, 0.2));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(15, 23, 42, 0.22));
   content: '';
+}
+
+.summary-box {
+  background:
+    linear-gradient(180deg, rgba(235, 246, 241, 0.92), rgba(243, 249, 247, 0.86));
+}
+
+.spec-chip {
+  background:
+    linear-gradient(180deg, rgba(246, 248, 251, 0.96), rgba(240, 244, 248, 0.86));
+}
+
+.reason-chip {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 245, 241, 0.74));
+  box-shadow: 0 8px 18px rgba(148, 163, 184, 0.08);
 }
 </style>

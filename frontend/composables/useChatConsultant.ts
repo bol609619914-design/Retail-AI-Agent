@@ -10,6 +10,7 @@ export function useChatConsultant() {
   const demoMode = ref(true)
   const conversationStage = ref<ConversationStage>('clarify_space')
   const profileSummary = ref<string[]>([])
+  const currentRecommendation = ref<ChatMessage['recommendation']>(null)
   const messages = ref<ChatMessage[]>([
     {
       id: 1,
@@ -19,44 +20,7 @@ export function useChatConsultant() {
     }
   ])
 
-  const activeRecommendation = computed(() => {
-    for (let index = messages.value.length - 1; index >= 0; index -= 1) {
-      const recommendation = messages.value[index]?.recommendation
-      if (recommendation) {
-        return recommendation
-      }
-    }
-    return null
-  })
-
-  const statusTitle = computed(() => {
-    if (activeRecommendation.value) {
-      return '已形成推荐'
-    }
-    if (conversationStage.value === 'clarify_atmosphere_or_function') {
-      return '正在收拢氛围与功能'
-    }
-    if (conversationStage.value === 'final_recommendation') {
-      return '进入单品判断'
-    }
-    return '仍在理解空间'
-  })
-
-  const statusCopy = computed(() => {
-    if (activeRecommendation.value) {
-      return '顾问已经形成单品判断，并把理由、命中的偏好点与替代选择说明同步展开。'
-    }
-
-    if (conversationStage.value === 'clarify_atmosphere_or_function') {
-      return '空间方向已经有了，下一步会继续追问你更偏好的氛围感受或功能重点。'
-    }
-
-    if (conversationStage.value === 'final_recommendation') {
-      return '信息已经接近足够，顾问正在将偏好收敛成一件更合适的单品。'
-    }
-
-    return '当前仍处于第一轮理解阶段，你可以先说空间，再慢慢讲气氛与使用习惯。'
-  })
+  const activeRecommendation = computed(() => currentRecommendation.value ?? null)
 
   function extractEvents(buffer: string) {
     const parts = buffer.split('\n\n')
@@ -86,11 +50,12 @@ export function useChatConsultant() {
 
     if (eventName === 'product' && payload.product) {
       assistantMessage.recommendation = payload.product
+      currentRecommendation.value = payload.product
       return
     }
 
     if (eventName === 'meta') {
-      demoMode.value = payload.mode !== 'openai'
+      demoMode.value = payload.mode === 'mock'
       if (payload.stage) {
         conversationStage.value = payload.stage
       }
@@ -117,6 +82,7 @@ export function useChatConsultant() {
       content: value
     })
     draft.value = ''
+    currentRecommendation.value = null
 
     const requestMessages = messages.value.map(({ role, content }) => ({ role, content }))
     const assistantMessage: ChatMessage = {
@@ -176,12 +142,12 @@ export function useChatConsultant() {
       }
 
       if (!assistantMessage.content.trim()) {
-        assistantMessage.content = '我暂时没有整理出明确回复，你可以再补充一点你想要的空间感受。'
+        assistantMessage.content = '我暂时还没有整理出明确判断，你可以再补一句你更想要的氛围或使用方式。'
       }
     } catch (error) {
       assistantMessage.content = error instanceof Error
         ? `连接顾问服务时出现问题：${error.message}`
-        : '连接顾问服务时出现未知问题。'
+        : '连接顾问服务时出现了未知问题。'
     } finally {
       assistantMessage.isStreaming = false
       isStreaming.value = false
@@ -197,8 +163,6 @@ export function useChatConsultant() {
     isStreaming,
     messages,
     profileSummary,
-    sendMessage,
-    statusCopy,
-    statusTitle
+    sendMessage
   }
 }

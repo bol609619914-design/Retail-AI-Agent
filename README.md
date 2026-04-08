@@ -1,4 +1,4 @@
-# Retail-AI-Agent
+﻿# Retail-AI-Agent
 
 > 一个面向高端零售导购场景的 AI 对话式原型项目。  
 > 通过克制、优雅的交互界面，结合本地产品库检索与大模型流式回复，模拟精品商场顾问式推荐体验。
@@ -247,6 +247,69 @@ copy .env.example .env
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
+## Vercel 部署
+
+这个项目建议拆成两个 Vercel Project：
+
+1. 前端项目
+   根目录选择 `frontend`
+2. 后端项目
+   根目录选择 `backend`
+
+这样更稳定，也更符合当前 Nuxt 3 + FastAPI 的分层结构。
+
+### 部署后端
+
+- 在 Vercel 新建一个项目，Root Directory 选 `backend`
+- 保持默认 Python 检测即可
+- 后端入口已经准备好：
+  - `backend/api/index.py`
+  - `backend/vercel.json`
+
+后端项目需要配置这些环境变量：
+
+```env
+APP_NAME=Retail-AI-Agent API
+APP_VERSION=0.1.0
+API_PREFIX=/api
+ALLOWED_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000"]
+ALLOWED_ORIGIN_REGEX=https://.*\.vercel\.app
+LLM_PROVIDER=openai_compatible
+OPENAI_API_KEY=your_api_key_here
+OPENAI_MODEL=qwen-plus
+OPENAI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+```
+
+部署成功后，你会得到一个后端地址，例如：
+
+- `https://retail-ai-agent-backend.vercel.app`
+
+### 部署前端
+
+- 在 Vercel 再新建一个项目，Root Directory 选 `frontend`
+- 在环境变量里配置：
+
+```env
+NUXT_PUBLIC_API_BASE=https://你的后端域名.vercel.app
+```
+
+- 例如：
+
+```env
+NUXT_PUBLIC_API_BASE=https://retail-ai-agent-backend.vercel.app
+```
+
+前端已经改成运行时读取 `NUXT_PUBLIC_API_BASE`，所以不用再手改代码。
+
+### 部署顺序建议
+
+1. 先部署 `backend`
+2. 复制后端线上域名
+3. 再部署 `frontend`
+4. 在前端项目里填入 `NUXT_PUBLIC_API_BASE`
+
+如果后续重新生成了后端域名，只需要更新前端环境变量并重新部署即可。
+
 ## 环境变量
 
 后端使用 `backend/.env` 管理配置：
@@ -255,15 +318,18 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 APP_NAME=Retail-AI-Agent API
 APP_VERSION=0.1.0
 API_PREFIX=/api
-OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_MODEL=gpt-4o-mini
+LLM_PROVIDER=openai_compatible
+OPENAI_API_KEY=your_api_key_here
+OPENAI_MODEL=qwen-plus
+OPENAI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 ```
 
 说明：
 
+- 当前后端已兼容阿里百炼的 OpenAI 兼容接口，适合直接接入千问模型
 - 如果暂时没有 `OPENAI_API_KEY`，前端页面依然可以单独打开和预览
 - 此时系统会进入“本地演示模式”，使用模拟顾问逻辑完成完整中文演示
-- 只有在调用在线模型时，才需要真正接入 OpenAI 服务
+- 只有在调用在线模型时，才需要真正接入兼容接口服务
 
 ## API 概览
 

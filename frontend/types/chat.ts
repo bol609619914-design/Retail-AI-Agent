@@ -17,6 +17,7 @@ export interface ProductRecommendation {
   ideal_for: string[]
   avoid_for: string[]
   pairing_note: string
+  source_url?: string
   image: string
   feature: string
   benefit: string

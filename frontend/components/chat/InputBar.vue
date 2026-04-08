@@ -1,5 +1,5 @@
 <template>
-  <div class="flex items-center gap-3 rounded-full border border-white/55 bg-white/65 px-5 py-3 shadow-[0_10px_30px_rgba(148,163,184,0.10)]">
+  <div class="input-shell flex items-center gap-3 rounded-full px-5 py-3 shadow-[0_18px_38px_rgba(148,163,184,0.12)]">
     <input
       :value="modelValue"
       type="text"
@@ -12,7 +12,7 @@
 
     <button
       type="button"
-      class="send-button flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-white/80 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+      class="send-button flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
       :disabled="disabled"
       @click="emit('submit')"
     >
@@ -52,8 +52,15 @@ function handleInput(event: Event) {
 </script>
 
 <style scoped>
+.input-shell {
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 244, 238, 0.7));
+}
+
 .send-button {
   border: 0;
-  background: transparent;
+  background: linear-gradient(180deg, rgba(239, 249, 244, 0.94), rgba(223, 242, 232, 0.9));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
 }
 </style>

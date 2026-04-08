@@ -21,50 +21,49 @@ class PreferenceProfile:
 
 SPACE_TERMS = {
     "卧室": ["卧室", "床头", "睡房"],
-    "书房": ["书房", "办公桌", "工作台"],
+    "书房": ["书房", "办公桌", "工作台", "阅读角"],
     "客厅": ["客厅", "起居室", "会客区"],
     "玄关": ["玄关", "门厅", "入户"],
-    "衣帽间": ["衣帽间", "更衣区"],
-    "咖啡角": ["咖啡角", "咖啡区", "吧台"],
+    "餐厨区": ["餐厨区", "厨房", "餐厅", "吧台"],
+    "工作室": ["工作室", "studio", "工作空间"],
 }
 
 ATMOSPHERE_TERMS = {
-    "安静": ["安静", "静音", "不吵"],
-    "柔和": ["柔和", "柔一点", "不刺眼"],
-    "放松": ["放松", "松弛", "治愈"],
+    "安静": ["安静", "静音", "不吵", "安宁"],
+    "柔和": ["柔和", "柔一点", "不刺眼", "温柔"],
+    "放松": ["放松", "松弛", "疗愈", "舒缓"],
     "清新": ["清新", "干净", "通透"],
     "仪式感": ["仪式感", "精致", "高级感"],
-    "明亮": ["明亮", "清亮", "提气"],
+    "包裹感": ["包裹感", "沉浸", "氛围感", "环绕"],
 }
 
 FUNCTION_TERMS = {
-    "香氛": ["香氛", "香味", "扩香"],
-    "照明": ["灯", "灯光", "照明", "夜读"],
-    "空气": ["空气", "净化", "送风", "除味"],
-    "穿搭": ["穿搭", "搭配", "试衣"],
-    "咖啡": ["咖啡", "手冲", "萃取"],
-    "助眠": ["睡眠", "助眠", "睡前"],
+    "香氛": ["香氛", "香味", "扩香", "精油", "香薰"],
+    "照明": ["台灯", "灯光", "照明", "夜读", "阅读灯", "阅读", "光线"],
+    "音乐": ["音乐", "音响", "声场", "听歌", "蓝牙音箱", "空间音频"],
+    "咖啡": ["咖啡", "手冲", "冲煮", "咖啡机", "咖啡壶"],
+    "保温": ["保温", "恒温", "热饮", "马克杯"],
 }
 
 STYLE_TERMS = {
     "极简": ["极简", "简洁", "干净利落"],
     "温润": ["温润", "柔和", "不冰冷"],
     "现代": ["现代", "当代", "利落"],
-    "酒店感": ["酒店感", "酒店式", "精品酒店"],
+    "酒店感": ["酒店感", "酒店风", "精品酒店"],
     "雕塑感": ["雕塑感", "造型感", "设计感"],
 }
 
 BUDGET_TERMS = {
-    "入门奢享": ["三千内", "3000", "预算低一些", "别太贵"],
-    "中高预算": ["五千左右", "5000", "预算中等"],
-    "高预算": ["预算高", "万元内", "一万", "不太考虑预算"],
+    "入门奢享": ["预算低一点", "别太贵", "千元内", "两千以内"],
+    "中高预算": ["三千左右", "五千左右", "中高预算", "预算中等"],
+    "高预算": ["预算高", "万元内", "不太考虑预算", "贵一点没关系"],
 }
 
 INTENT_TERMS = {
     "自用": ["自己用", "日常用", "长期用"],
     "送礼": ["送礼", "礼物", "送人"],
-    "提升空间质感": ["空间质感", "整体氛围", "气质"],
-    "提高效率": ["效率", "省时间", "方便"],
+    "提升空间质感": ["空间质感", "整体氛围", "气质", "更高级"],
+    "提高效率": ["效率", "省时间", "方便", "顺手"],
 }
 
 CONSTRAINT_TERMS = {
@@ -109,6 +108,7 @@ def product_search_text(product: dict[str, Any]) -> str:
         product.get("materials", ""),
         product.get("craftsmanship", ""),
         product.get("pairing_note", ""),
+        product.get("source_url", ""),
         " ".join(product.get("signature_specs", [])),
         " ".join(product.get("style_tags", [])),
         " ".join(product.get("room_tags", [])),
@@ -181,17 +181,20 @@ def score_product(product: dict[str, Any], profile: PreferenceProfile) -> tuple[
     score = 0
     matched_preferences: list[str] = []
     product_text = product_search_text(product)
+    matched_functions: list[str] = []
 
-    def add_points(labels: list[str], weight: int) -> None:
+    def add_points(labels: list[str], weight: int, bucket: list[str] | None = None) -> None:
         nonlocal score
         for label in labels:
             if label.lower() in product_text:
                 score += weight
                 matched_preferences.append(label)
+                if bucket is not None:
+                    bucket.append(label)
 
     add_points(profile.spaces, 4)
     add_points(profile.atmospheres, 3)
-    add_points(profile.functions, 4)
+    add_points(profile.functions, 5, matched_functions)
     add_points(profile.styles, 2)
     add_points(profile.intents, 2)
 
@@ -203,6 +206,9 @@ def score_product(product: dict[str, Any], profile: PreferenceProfile) -> tuple[
     for token in profile.keywords:
         if token in product_text:
             score += 1
+
+    if profile.functions and not matched_functions:
+        score -= 8
 
     avoid_for = " ".join(product.get("avoid_for", []))
     for constraint in profile.constraints:
@@ -254,24 +260,24 @@ def build_recommendation_payload(
     ranked = rank_products(products_file, profile)
     alternatives = [candidate_product["name"] for _, candidate_product, _ in ranked[1:3]]
 
-    normalized_preferences = matched_preferences[:4] or ["空间氛围", "日常舒适度"]
+    normalized_preferences = matched_preferences[:4] or profile_summary(profile)[:4] or ["空间氛围", "日常舒适度"]
     why_this = [
-        f"它与当前对话里反复出现的重点更一致：{'、'.join(normalized_preferences)}。",
+        f"它和当前对话里反复出现的重点更一致：{'、'.join(normalized_preferences)}。",
         f"从使用体验来看，{product['benefit']}",
-        f"从产品气质来看，{product['pairing_note']}",
+        f"从空间气质来看，{product['pairing_note']}",
     ]
 
     if alternatives:
+        alternative_text = " 和 ".join(alternatives)
         why_not_others = (
-            f"相比 {alternatives[0]}"
-            + (f" 和 {alternatives[1]}" if len(alternatives) > 1 else "")
-            + "，这款更集中地回应了你现在最在意的空间感受，不需要再在多个方向之间折返。"
+            f"相比 {alternative_text}，这一款更集中地回应了你现在最在意的重点，"
+            "不会把判断分散到别的方向上。"
         )
     else:
-        why_not_others = "以当前的偏好信息来看，这款的方向已经足够集中，没有必要再分散到其他选择。"
+        why_not_others = "以当前聊出来的偏好看，这一款的方向已经足够集中，没有必要再把重点分散到别的选择上。"
 
     consultant_summary = (
-        f"{product['name']} 更像是一件把 {product['category']} 融进空间气质里的单品，"
+        f"{product['name']} 更像是一件把 {product['category']} 融进生活方式里的单品，"
         "重点不是参数堆得多，而是它进入日常之后会不会让使用感受更顺。"
     )
 
@@ -289,6 +295,7 @@ def build_recommendation_payload(
         "ideal_for": product.get("ideal_for", []),
         "avoid_for": product.get("avoid_for", []),
         "pairing_note": product.get("pairing_note", ""),
+        "source_url": product.get("source_url", ""),
         "image": product.get("image", ""),
         "feature": product["feature"],
         "benefit": product["benefit"],

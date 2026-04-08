@@ -1,5 +1,5 @@
 <template>
-  <div ref="viewport" class="message-viewport h-full min-h-0 overflow-y-auto border-b border-white/30 px-4 py-5 sm:px-6 lg:border-b-0 lg:border-r">
+  <div ref="viewport" class="message-viewport h-full min-h-0 overflow-y-auto px-4 py-5 sm:px-6">
     <TransitionGroup name="message" tag="div" class="space-y-4">
       <div
         v-for="message in messages"
@@ -28,10 +28,10 @@
 
         <div class="max-w-[84%] space-y-3">
           <div
-            class="rounded-[24px] px-4 py-3 text-[15px] font-normal leading-7 shadow-[0_12px_30px_rgba(148,163,184,0.10)]"
+            class="message-bubble rounded-[24px] px-4 py-3 text-[15px] font-normal leading-7 shadow-[0_16px_36px_rgba(140,156,176,0.12)]"
             :class="message.role === 'assistant'
-              ? 'bg-white/82 text-slate-700'
-              : 'bg-emerald-50/90 text-slate-800'"
+              ? 'assistant-bubble text-slate-700'
+              : 'user-bubble text-slate-700'"
           >
             <template v-if="message.content">
               <div class="whitespace-pre-line">
@@ -90,18 +90,64 @@ onMounted(scrollToBottom)
 </script>
 
 <style scoped>
-.ai-avatar {
-  border: 1px solid rgba(255, 255, 255, 0.72);
+.message-viewport {
+  border-right: 1px solid rgba(255, 255, 255, 0.28);
+  background:
+    linear-gradient(180deg, rgba(255, 252, 248, 0.64), rgba(255, 255, 255, 0.14)),
+    radial-gradient(circle at top left, rgba(255, 240, 222, 0.18), transparent 22%);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.55) transparent;
+  scrollbar-gutter: stable;
+}
+
+.message-viewport::-webkit-scrollbar {
+  width: 6px;
+}
+
+.message-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.message-viewport::-webkit-scrollbar-thumb {
+  border: 1px solid transparent;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.8);
-  box-shadow: 0 8px 24px rgba(148, 163, 184, 0.14);
+  background-clip: padding-box;
+  background-color: rgba(148, 163, 184, 0.42);
+}
+
+.message-viewport::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(100, 116, 139, 0.56);
+}
+
+.message-bubble {
+  position: relative;
+  overflow: hidden;
+}
+
+.assistant-bubble {
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(251, 246, 238, 0.74));
+}
+
+.user-bubble {
+  border: 1px solid rgba(206, 235, 222, 0.92);
+  background:
+    linear-gradient(180deg, rgba(234, 250, 241, 0.96), rgba(219, 243, 231, 0.88));
+}
+
+.ai-avatar {
+  border: 1px solid rgba(255, 255, 255, 0.74);
+  border-radius: 9999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(241, 251, 245, 0.82));
+  box-shadow: 0 10px 26px rgba(148, 163, 184, 0.14);
 }
 
 .user-avatar {
-  border: 1px solid rgba(255, 255, 255, 0.66);
+  border: 1px solid rgba(208, 235, 223, 0.92);
   border-radius: 9999px;
-  background: linear-gradient(135deg, rgba(236, 253, 245, 1), rgba(220, 252, 231, 0.9));
-  box-shadow: 0 8px 24px rgba(148, 163, 184, 0.1);
+  background: linear-gradient(180deg, rgba(232, 250, 240, 0.98), rgba(214, 241, 228, 0.92));
+  box-shadow: 0 10px 26px rgba(148, 163, 184, 0.14);
 }
 
 .avatar-icon {
@@ -155,31 +201,6 @@ onMounted(scrollToBottom)
 .message-enter-to {
   opacity: 1;
   transform: translateY(0);
-}
-
-.message-viewport {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.55) transparent;
-  scrollbar-gutter: stable;
-}
-
-.message-viewport::-webkit-scrollbar {
-  width: 6px;
-}
-
-.message-viewport::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.message-viewport::-webkit-scrollbar-thumb {
-  border: 1px solid transparent;
-  border-radius: 9999px;
-  background-clip: padding-box;
-  background-color: rgba(148, 163, 184, 0.42);
-}
-
-.message-viewport::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(100, 116, 139, 0.56);
 }
 
 @keyframes pulse {
