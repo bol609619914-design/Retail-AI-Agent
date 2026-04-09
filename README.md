@@ -3,7 +3,7 @@
 > 一个面向高端零售导购场景的 AI 对话式原型项目。  
 > 通过克制、优雅的交互界面，结合本地精选产品库、实时联网搜品与大模型流式回复，模拟精品商场顾问式推荐体验。
 
-![Retail-AI-Agent 首页预览](docs/images/chat-home-2026-04-09.jpg)
+![Retail-AI-Agent 首页预览](docs/images/chat-home-2026-04-09.png)
 
 ## 项目简介
 
@@ -175,7 +175,7 @@ Retail-AI-Agent/
 |   `-- vercel.json
 |-- docs/
 |   `-- images/
-|       |-- chat-home-2026-04-09.jpg
+|       |-- chat-home-2026-04-09.png
 |       `-- chat-home.png
 |-- frontend/
 |   |-- assets/
