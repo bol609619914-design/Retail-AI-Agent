@@ -2,13 +2,12 @@
   <div class="chat-page flex min-h-screen items-start justify-center px-4 py-6 sm:px-6 lg:py-8">
     <div class="chat-shell mx-auto flex h-[min(88vh,920px)] w-full max-w-6xl flex-col overflow-hidden rounded-[36px] border border-white/60 bg-white/40 shadow-[0_40px_100px_rgba(131,152,175,0.22)] backdrop-blur-[28px]">
       <header class="shell-header flex flex-wrap items-center justify-between gap-4 px-6 py-5 sm:px-8">
-        <div>
-          <p class="wordmark text-[12px] font-semibold uppercase tracking-[0.28em] text-emerald-800/72">
-            Retail AI Agent
+        <div class="brand-lockup">
+          <p class="wordmark" aria-label="Retail AI Agent">
+            <span class="wordmark-retail">Retail</span>
+            <span class="wordmark-ai">AI</span>
+            <span class="wordmark-agent">Agent</span>
           </p>
-          <h1 class="mt-2 text-2xl font-normal text-slate-800 sm:text-3xl">
-            高端零售顾问对话台
-          </h1>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
@@ -100,8 +99,33 @@ const {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 251, 247, 0.26));
 }
 
+.brand-lockup {
+  display: flex;
+  align-items: center;
+}
+
 .wordmark {
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: 0.12em;
+  color: #58a57e;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.78),
+    0 8px 24px rgba(124, 176, 145, 0.16);
+}
+
+.wordmark-retail,
+.wordmark-ai,
+.wordmark-agent {
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: 0.12em;
+  color: #58a57e;
 }
 
 .status-pill {
